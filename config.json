@@ -1,0 +1,24 @@
+{
+	"douban": {
+		"post-url": "https://www.douban.com/note/create",
+		"captcha-url": "https://www.douban.com",
+		"captcha-id": "lb12Ad6qb4JA6PRbTmZmnNyT:en",
+		"captcha-text": "price",
+		"login-url": "https://accounts.douban.com/login",
+	},
+	"zhihu": {
+		"login-page": "https://www.zhihu.com/",
+		"captcha-url": "http://www.zhihu.com/captcha.gif?r=%d&type=login",
+		"captcha-text": "gb6f",
+		"login-url": "https://www.zhihu.com/login/phone_num",
+		"post-url":"https://zhuanlan.zhihu.com/write"
+	},
+	"segment": {
+		"login-url": "https://segmentfault.com/api/user/login?_=b56c39ea0c0d50b3dd9e5fa11d9e2f00",
+		"post-url":"https://segmentfault.com/api/articles/add?_=7ee3470a9132cf004a134938342f4b35",
+		"draft-url":"https://segmentfault.com/api/article/draft/save?_=7ee3470a9132cf004a134938342f4b35",
+		"login-page":"https://segmentfault.com/",
+		"tag-url":"https://segmentfault.com/api/tags/search?_=7ee3470a9132cf004a134938342f4b35&q=",
+		"blog-list":"segment.bl"
+	}
+}
