@@ -14,6 +14,8 @@
 		"post-url":"https://zhuanlan.zhihu.com/write"
 	},
 	"segment": {
+		"username":"13728728332",
+		"password":"123mutouren789",
 		"login-url": "https://segmentfault.com/api/user/login?_=b56c39ea0c0d50b3dd9e5fa11d9e2f00",
 		"post-url":"https://segmentfault.com/api/articles/add?_=7ee3470a9132cf004a134938342f4b35",
 		"draft-url":"https://segmentfault.com/api/article/draft/save?_=7ee3470a9132cf004a134938342f4b35",
