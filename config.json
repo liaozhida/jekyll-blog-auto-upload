@@ -1,10 +1,11 @@
 {
+	"blogDir":"/Users/zhidaliao/Desktop/zhida_blog/_posts",
 	"douban": {
 		"post-url": "https://www.douban.com/note/create",
 		"captcha-url": "https://www.douban.com",
 		"captcha-id": "lb12Ad6qb4JA6PRbTmZmnNyT:en",
 		"captcha-text": "price",
-		"login-url": "https://accounts.douban.com/login",
+		"login-url": "https://accounts.douban.com/login"
 	},
 	"zhihu": {
 		"login-page": "https://www.zhihu.com/",
@@ -22,5 +23,14 @@
 		"login-page":"https://segmentfault.com/",
 		"tag-url":"https://segmentfault.com/api/tags/search?_=7ee3470a9132cf004a134938342f4b35&q=",
 		"blog-list":"segment.bl"
+	},
+	"csdn": {
+		"username":"a422351001@gmail.com",
+		"password":"123mutouren789",
+		"login-url": "https://passport.csdn.net/account/login?ref=toolbar",
+		"post-url":"http://write.blog.csdn.net/mdeditor/setArticle",
+		"login-page":"https://passport.csdn.net/account/login",
+		"tag-url":"https://recommend-api.csdn.net/tag/complete?&callback=jQuery20306530201287187121_1508836635911&_=1508836635913&query=",
+		"blog-list":"csdn.bl"
 	}
 }
