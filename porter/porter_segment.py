@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-
 import json
 import requests
 import sys, os
 import time
 import re
 import urllib
-
+from commonUtils import FileUtils
 
 class Helper:
 	initheaders = {
@@ -23,11 +22,12 @@ class Helper:
 		"Accept-Encoding": "gzip, deflate, br",
 		"Accept-Language": "zh-CN,zh;q=0.8,en;q=0.6,ja;q=0.4,zh-TW;q=0.2",
 		"Pragma": "no-cache",
-		"Cache-Control": "no-cache",
-		"Cookie": "PHPSESSID=web3~fdf535b2518f7f061780d987bb65934a; _gat=1; io=onpREhr-L-d7pRxJHvSF; Hm_lvt_e23800c454aa573c0ccb16b52665ac26=1508383051,1508500169,1508563643,1508565378; Hm_lpvt_e23800c454aa573c0ccb16b52665ac26=1508569683; _ga=GA1.2.613128477.1495522770; _gid=GA1.2.1217955936.1508498183"
+		"Cache-Control": "no-cache"
 	}
 	
 	def __init__(self):
+		self.filenameList = {}
+		self.fileUtils = FileUtils()
 		self.loadConfig()
 		self._session = requests.session()
 		self._session.headers = Helper.initheaders
@@ -36,24 +36,22 @@ class Helper:
 			print 'use cached headers'
 			self._session.headers = self.initHeader()
 			print self._session.headers
-		self.filenameList = {}
+		
+		reload(sys)
+		sys.setdefaultencoding("utf-8")
 	
 	def loadConfig(self):
 		# 获取配置文件
 		
-		currentProject = os.path.dirname(sys.path[0])
-		configStr = os.path.abspath(os.path.join(currentProject, 'config.json'))
-		data_file = open(configStr)
-		
-		data = json.load(data_file)
-		self.loginUrl = data["segment"]["login-url"]
-		self.loginPage = data["segment"]["login-page"]
-		self.postUrl = data["segment"]["post-url"]
-		self.username = data["segment"]["username"]
-		self.password = data["segment"]["password"]
-		self.draftUrl = data["segment"]["draft-url"]
-		self.tagUrl = data["segment"]["tag-url"]
-		self.bloglist = data["segment"]["blog-list"]
+		self.configData = self.fileUtils.loadConfigfile()
+		self.loginUrl = self.configData["segment"]["login-url"]
+		self.loginPage = self.configData["segment"]["login-page"]
+		self.postUrl = self.configData["segment"]["post-url"]
+		self.username = self.configData["segment"]["username"]
+		self.password = self.configData["segment"]["password"]
+		self.draftUrl = self.configData["segment"]["draft-url"]
+		self.tagUrl = self.configData["segment"]["tag-url"]
+		self.bloglist = self.configData["segment"]["blog-list"]
 	
 	def initHeader(self):
 		try:
@@ -84,7 +82,6 @@ class Helper:
 				res = self._session.post(self.loginUrl, data=data, timeout=10)
 				print res
 				if (res.status_code == 200):
-					self.saveHeader()
 					print 'login succ'
 					return 0
 				else:
@@ -112,13 +109,6 @@ class Helper:
 		return form
 	
 	def postArticle(self, filename):
-		## 私人文章不上传
-		privateTag = self.filenameList[filename]
-		# print '---tag:'
-		# print privateTag
-		# print str(privateTag).find('工作')
-		if (str(privateTag).find('工作') != -1 or str(privateTag).find('私人') != -1):
-			return None
 		
 		self._session.headers['Referer'] = 'https://segmentfault.com/write?freshman=1'
 		formdata = self._prepare_post_form_data(filename)
@@ -136,14 +126,15 @@ class Helper:
 				print res.text
 				if (res.json()['status'] == 0):
 					print '文章发布成功:' + formdata['title']
-					self.addbloglist(filename)
+					self.fileUtils.addbloglist(filename,self.bloglist)
 				elif(res.json()['status'] == 1):
 					print '文章发布失败:'
 					print res.json()['data']
-					shuzu = res.json()['data']
-					for sz in shuzu:
-						if(str(sz) != 'form'):
-							print sz['captcha']
+					return -2
+					# shuzu = res.json()['data']
+					# for sz in shuzu:
+					# 	if(str(sz) != 'form'):
+					# 		print sz['captcha']
 				else:
 					print '文章发布失败:' + formdata['title'] + "  -:" + res.json()
 			except:
@@ -154,14 +145,41 @@ class Helper:
 		print '-- post end --'
 	
 	def _prepare_post_form_data(self, filename):
-		
+	
 		## 获取提交文章需要的信息
-		draftData = self.extractFile(filename)
+		proData = self.fileUtils.processor(filename)
+		
+		## 封装数据
+		data = {
+			"do": "saveArticle",
+			"type": "1",
+			"title": proData['title'],
+			"text": proData['text'],
+			"weibo": "0",
+			"blogId": "0",
+			"aticleId": "",
+			"id": "",
+			"url": ""
+		}
+		
+		# 获取标签
+		tags = self.filenameList[filename].split('|')
+		tagsDict = []
+		for tag in tags:
+			# print tag + ' --> ' + filename
+			data['tags[]'] = self.getTags(tag)
+			
+		draftData = data
+		
+		
 		if (draftData == None):
 			return None
 		
-		# print draftData
+		print draftData
 		# return None
+		
+		print 'text size:'
+		print len(draftData['text'])
 		
 		print '-- save draft --'
 		artId = ''
@@ -174,6 +192,12 @@ class Helper:
 					artId = res.json()['data']
 					print '保存草稿成功'
 				else:
+					print res.text
+					print res.json()['data']
+					shuzu = res.json()['data']
+					for sz in shuzu:
+						if (str(sz) != 'form'):
+							print sz['text']
 					print '保存草稿失败'
 					return None
 			except:
@@ -190,110 +214,15 @@ class Helper:
 		
 		return draftData
 	
-	def addbloglist(self, filename):
-		path = os.path.abspath(os.path.join(sys.path[0], '../bloglist/' + self.bloglist))
-		file = open(path, 'a')
-		file.write('\r\n'+filename.split('/')[len(filename.split('/'))-1])
-		file.close()
 	
-	def isbloglist(self, filename):
-		path = os.path.abspath(os.path.join(sys.path[0], '../bloglist/' + self.bloglist))
-		# print 'path:' + filename
-		# print path
-		# print os.path.exists(path)
-		
-		filename = filename.split('/')[len(filename.split('/'))-1]
-		
-		if (os.path.exists(path)):
-			filecontent = open(path).read()
-			if (filecontent.find(filename) != -1):
-				return True
-			else:
-				print '发现新文章 <<' + filename + '>>, 准备提交'
-				return False
-		else:
-			file = open(path, 'w')
-			file.write('过往提交文章记录:\r\n')
-			file.close()
 	
-	def saveHeader(self):
-		cookiepath = os.path.abspath(os.path.join(os.path.dirname('.'), 'cookie/segment_cookies'))
-		file = open(cookiepath, 'w')
-		cookies = self._session.headers
-		json.dump(cookies, file)
-		file.close()
+
 	
-	def dirCb(self, dirname):
-		for line in os.listdir(dirname):
-			filename = os.path.abspath(os.path.join(dirname, line))
-			if (os.path.isdir(filename)):
-				self.dirCb(filename)
-			else:
-				pattern = re.compile(r"(\d+)-(\d+)-(\d+)-(.{0,}.md)")
-				result = pattern.findall(filename)
-				if (len(result) != 0):
-					tags = filename.split('_posts')[1]
-					# print tags
-					tagname = ''
-					for tag in tags.split(os.sep):
-						if (tag != '' and len(pattern.findall(tag)) == 0):
-							tagname = tagname + '|' + tag
-					tagname = tagname[1:]
-					self.filenameList[filename] = tagname
-				
-				# for fn in self.filenameList:
-				# 	print fn +' -t- '+self.filenameList[fn]
+	
+
 	
 	def destroy(self):
 		self._session.close()
-	
-	def extractFile(self, filename):
-		
-		data = {}
-		## 长度
-		file = open(filename)
-		filecontent = file.read()
-		print len(filecontent)
-		
-		if (len(filecontent) >= 75000):
-			filecontent = filecontent[0:75000]
-		
-		## 链接添加
-		pattern = re.compile(r"(\d+)-(\d+)-(\d+)-(.{0,}).md")
-		# print filename
-		result = pattern.findall(filename)
-		# print result
-		href = 'http://www.paraller.com/' + result[0][0] + '/' + result[0][1] + '/' + result[0][2] + '/' + urllib.quote_plus(result[0][3]) + '/'
-		lience = '转载请注明出处 [http://www.paraller.com](http://www.paraller.com) \r\n  原文排版地址 [点击跳转](' + href + ')\r\n'
-		# print lience
-		
-		## 处理头部注释
-		pattern = re.compile(r"---(\n(.{0,}))*---")
-		filecontent = re.sub(pattern, lience, filecontent)
-		
-		## 封装数据
-		data = {
-			"do": "saveArticle",
-			"type": "1",
-			"title": result[0][3],
-			"text": filecontent,
-			"weibo": "0",
-			"blogId": "0",
-			"aticleId": "",
-			"id": "",
-			"url": ""
-		}
-		
-		print self.filenameList[filename]
-		
-		# 获取标签
-		tags = self.filenameList[filename].split('|')
-		tagsDict = []
-		for tag in tags:
-			# print tag + ' --> ' + filename
-			data['tags[]'] = self.getTags(tag)
-		
-		return data
 	
 	def getTags(self, tagname):
 		## 标签处理
@@ -308,7 +237,7 @@ class Helper:
 			try:
 				# print 'getTags:'
 				# print self.tagUrl + urllib.quote_plus(tagname)
-				res = self._session.get(self.tagUrl + urllib.quote_plus(tagname), timeout=5)
+				res = self._session.get(self.tagUrl + tagname, timeout=5)
 			except:
 				time.sleep(2)
 				print 'ag'
@@ -331,39 +260,29 @@ if __name__ == '__main__':
 	
 	_helper = Helper()
 	code = 0
-	code = _helper.login()
+	# code = _helper.login()
 	
 	# time.sleep(1200)
 	
 	if (code == 0):
-		path = os.path.abspath(os.path.join(sys.path[0], '../../'))
-		_helper.dirCb(path)
+		path = _helper.configData['blogDir']
+		print path
+		_helper.filenameList = _helper.fileUtils.dirCb(_helper.filenameList,path)
+		print len(_helper.filenameList)
 		for filename in _helper.filenameList:
 			## 判断文章是否提交过
-			if (_helper.isbloglist(filename)):
-				print '文件存在 bl'
+			if (_helper.fileUtils.wrongFile(_helper.filenameList,filename,_helper.bloglist)):
+				print '文件不符合上传条件'
 			else:
-				_helper.postArticle(filename)
-				time.sleep(120)
+				status = _helper.postArticle(filename)
+				if(status == -2):
+					break
+				else:
+					time.sleep(300)
 	else:
 		print '登录失败'
 	
 	_helper.destroy()
-
-	
-	# _helper.extractFile('/Users/zhidaliao/Desktop/zhida_blog/_posts/运维 & 主机 & 系统搭建/2016-05-22-gitlab-runner-maven卡死的情况.md')
-	
-	# _helper.postArticle('/Users/zhidaliao/Desktop/zhida_blog/_posts/运维 & 主机 & 系统搭建/2016-05-22-gitlab-runner-maven卡死的情况.md')
-	
-	# _helper._prepare_post_form_data('/Users/zhidaliao/Desktop/zhida_blog/_posts/运维 & 主机 & 系统搭建/2016-05-22-gitlab-runner-maven卡死的情况.md')
-	# 遍历文章
-	# _helper.loopDir()
-	#	_helper.dirCb('docker')
-	# if(code == 0):
-	# 	_helper.postArticle()
-	# _helper.destroy()
-
-
 
 
 else:
